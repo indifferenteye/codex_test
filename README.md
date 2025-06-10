@@ -16,3 +16,6 @@ Open `index.html` in a modern web browser. No additional dependencies are requir
 
 Enemies spawn from the edges of the screen and chase the player. Shoot them before they reach you.
 When the game ends, click anywhere on the canvas to restart.
+
+The game includes basic sound effects, particle explosions and screen shake for
+a juicier experience.
