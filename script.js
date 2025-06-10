@@ -1,6 +1,7 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
+const healthEl = document.getElementById('health');
 const messageEl = document.getElementById('message');
 const difficultyEl = document.getElementById('difficulty');
 
@@ -19,11 +20,13 @@ const player = {
     x: canvas.width / 2,
     y: canvas.height / 2,
     size: 20,
-    speed: 4
+    speed: 4,
+    hp: 3
 };
 
 let bullets = [];
 let enemies = [];
+let obstacles = [];
 
 const keys = {};
 let mousePos = { x: canvas.width / 2, y: canvas.height / 2 };
@@ -35,6 +38,17 @@ let score = 0;
 let spawnInterval = parseInt(difficultyEl.value, 10);
 let particles = [];
 let shake = 0;
+
+function generateWorld() {
+    obstacles = [];
+    const count = 10;
+    for (let i = 0; i < count; i++) {
+        const size = randomRange(40, 80);
+        const x = randomRange(size, canvas.width - size);
+        const y = randomRange(size, canvas.height - size);
+        obstacles.push({ x, y, width: size, height: size });
+    }
+}
 
 function randomRange(min, max) {
     return Math.random() * (max - min) + min;
@@ -111,22 +125,45 @@ function spawnEnemy() {
             y = canvas.height + size;
             break;
     }
-    enemies.push({ x, y, size, speed: 1.5 });
+    enemies.push({ x, y, size, speed: 1.5, hp: 2 });
 }
 
 function updatePlayer() {
+    const oldX = player.x;
+    const oldY = player.y;
     if (keys['w'] || keys['ArrowUp']) player.y -= player.speed;
     if (keys['s'] || keys['ArrowDown']) player.y += player.speed;
     if (keys['a'] || keys['ArrowLeft']) player.x -= player.speed;
     if (keys['d'] || keys['ArrowRight']) player.x += player.speed;
     player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
     player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+    obstacles.forEach(o => {
+        if (
+            player.x + player.size > o.x - o.width / 2 &&
+            player.x - player.size < o.x + o.width / 2 &&
+            player.y + player.size > o.y - o.height / 2 &&
+            player.y - player.size < o.y + o.height / 2
+        ) {
+            player.x = oldX;
+            player.y = oldY;
+        }
+    });
 }
 
 function updateBullets() {
     bullets.forEach((b, i) => {
         b.x += b.vx;
         b.y += b.vy;
+        obstacles.forEach(o => {
+            if (
+                b.x > o.x - o.width / 2 &&
+                b.x < o.x + o.width / 2 &&
+                b.y > o.y - o.height / 2 &&
+                b.y < o.y + o.height / 2
+            ) {
+                bullets.splice(i, 1);
+            }
+        });
         if (
             b.x < -b.radius ||
             b.x > canvas.width + b.radius ||
@@ -149,19 +186,27 @@ function updateEnemies() {
         if (distP < player.size + e.size) {
             spawnParticles(player.x, player.y, 30, 'red');
             hitSound();
-            gameOver = true;
+            player.hp -= 1;
+            healthEl.textContent = `Health: ${player.hp}`;
+            enemies.splice(i, 1);
+            if (player.hp <= 0) {
+                gameOver = true;
+            }
         }
 
         // collision with bullets
         bullets.forEach((b, bi) => {
             const distB = Math.hypot(b.x - e.x, b.y - e.y);
             if (distB < b.radius + e.size) {
-                enemies.splice(i, 1);
                 bullets.splice(bi, 1);
-                spawnParticles(e.x, e.y, 15, 'orange');
-                hitSound();
-                score += 10;
-                scoreEl.textContent = `Score: ${score}`;
+                e.hp -= 1;
+                if (e.hp <= 0) {
+                    enemies.splice(i, 1);
+                    spawnParticles(e.x, e.y, 15, 'orange');
+                    hitSound();
+                    score += 10;
+                    scoreEl.textContent = `Score: ${score}`;
+                }
             }
         });
     });
@@ -180,6 +225,13 @@ function drawBullets() {
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
         ctx.fill();
+    });
+}
+
+function drawObstacles() {
+    ctx.fillStyle = '#555';
+    obstacles.forEach(o => {
+        ctx.fillRect(o.x - o.width / 2, o.y - o.height / 2, o.width, o.height);
     });
 }
 
@@ -217,12 +269,15 @@ function startGame() {
     resizeCanvas();
     player.x = canvas.width / 2;
     player.y = canvas.height / 2;
+    player.hp = 3;
     bullets = [];
     enemies = [];
+    generateWorld();
     particles = [];
     shake = 0;
     score = 0;
     scoreEl.textContent = 'Score: 0';
+    healthEl.textContent = `Health: ${player.hp}`;
     messageEl.textContent = '';
     gameOver = false;
     spawnInterval = parseInt(difficultyEl.value, 10);
@@ -258,6 +313,7 @@ function gameLoop(timestamp) {
     updateBullets();
     updateEnemies();
     updateParticles();
+    drawObstacles();
     drawPlayer();
     drawBullets();
     drawEnemies();
