@@ -7,7 +7,6 @@ const difficultyEl = document.getElementById('difficulty');
 // simple audio setup for juicy feedback
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 const audioCtx = AudioCtx ? new AudioCtx() : null;
-
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
