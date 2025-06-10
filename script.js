@@ -1,5 +1,16 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const messageEl = document.getElementById('message');
+const difficultyEl = document.getElementById('difficulty');
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 const player = {
     x: canvas.width / 2,
@@ -16,6 +27,9 @@ let mousePos = { x: canvas.width / 2, y: canvas.height / 2 };
 let isShooting = false;
 let lastShot = 0;
 let gameOver = false;
+let running = false;
+let score = 0;
+let spawnInterval = parseInt(difficultyEl.value, 10);
 
 function randomRange(min, max) {
     return Math.random() * (max - min) + min;
@@ -100,6 +114,8 @@ function updateEnemies() {
             if (distB < b.radius + e.size) {
                 enemies.splice(i, 1);
                 bullets.splice(bi, 1);
+                score += 10;
+                scoreEl.textContent = `Score: ${score}`;
             }
         });
     });
@@ -131,15 +147,35 @@ function drawEnemies() {
 }
 
 let lastEnemySpawn = 0;
+function startGame() {
+    resizeCanvas();
+    player.x = canvas.width / 2;
+    player.y = canvas.height / 2;
+    bullets = [];
+    enemies = [];
+    score = 0;
+    scoreEl.textContent = 'Score: 0';
+    messageEl.textContent = '';
+    gameOver = false;
+    spawnInterval = parseInt(difficultyEl.value, 10);
+    lastEnemySpawn = 0;
+    lastShot = 0;
+    running = true;
+    requestAnimationFrame(gameLoop);
+}
 function gameLoop(timestamp) {
+    if (!running) return;
+
     if (gameOver) {
         ctx.fillStyle = 'white';
         ctx.font = '48px Arial';
         ctx.fillText('Game Over', canvas.width / 2 - 120, canvas.height / 2);
+        messageEl.textContent = 'Game Over - click to restart';
+        running = false;
         return;
     }
 
-    if (timestamp - lastEnemySpawn > 2000) {
+    if (timestamp - lastEnemySpawn > spawnInterval) {
         spawnEnemy();
         lastEnemySpawn = timestamp;
     }
@@ -162,6 +198,9 @@ function gameLoop(timestamp) {
 
 window.addEventListener('keydown', (e) => {
     keys[e.key.toLowerCase()] = true;
+    if (!running && e.key === ' ') {
+        startGame();
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -175,11 +214,21 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mousedown', () => {
-    isShooting = true;
+    if (running) {
+        isShooting = true;
+    }
 });
 
 canvas.addEventListener('mouseup', () => {
     isShooting = false;
 });
 
-requestAnimationFrame(gameLoop);
+canvas.addEventListener('click', () => {
+    if (!running) {
+        startGame();
+    }
+});
+
+difficultyEl.addEventListener('change', () => {
+    spawnInterval = parseInt(difficultyEl.value, 10);
+});
