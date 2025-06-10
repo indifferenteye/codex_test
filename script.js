@@ -1,5 +1,20 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const messageEl = document.getElementById('message');
+const difficultyEl = document.getElementById('difficulty');
+
+// simple audio setup for juicy feedback
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+const audioCtx = AudioCtx ? new AudioCtx() : null;
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
 
 const player = {
     x: canvas.width / 2,
@@ -16,9 +31,50 @@ let mousePos = { x: canvas.width / 2, y: canvas.height / 2 };
 let isShooting = false;
 let lastShot = 0;
 let gameOver = false;
+let running = false;
+let score = 0;
+let spawnInterval = parseInt(difficultyEl.value, 10);
+let particles = [];
+let shake = 0;
 
 function randomRange(min, max) {
     return Math.random() * (max - min) + min;
+}
+
+function playTone(freq, duration) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    osc.start();
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+function shootSound() {
+    playTone(600, 0.1);
+}
+
+function hitSound() {
+    playTone(200, 0.2);
+}
+
+function spawnParticles(x, y, count, color) {
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x,
+            y,
+            vx: randomRange(-3, 3),
+            vy: randomRange(-3, 3),
+            life: 30,
+            color
+        });
+    }
+    shake = 5;
 }
 
 function spawnBullet() {
@@ -31,6 +87,7 @@ function spawnBullet() {
         vy: Math.sin(angle) * speed,
         radius: 5
     });
+    shootSound();
 }
 
 function spawnEnemy() {
@@ -91,6 +148,8 @@ function updateEnemies() {
         // collision with player
         const distP = Math.hypot(player.x - e.x, player.y - e.y);
         if (distP < player.size + e.size) {
+            spawnParticles(player.x, player.y, 30, 'red');
+            hitSound();
             gameOver = true;
         }
 
@@ -100,6 +159,10 @@ function updateEnemies() {
             if (distB < b.radius + e.size) {
                 enemies.splice(i, 1);
                 bullets.splice(bi, 1);
+                spawnParticles(e.x, e.y, 15, 'orange');
+                hitSound();
+                score += 10;
+                scoreEl.textContent = `Score: ${score}`;
             }
         });
     });
@@ -130,27 +193,79 @@ function drawEnemies() {
     });
 }
 
+function updateParticles() {
+    particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    });
+}
+
+function drawParticles() {
+    particles.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(p.life / 30, 0);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    });
+}
+
 let lastEnemySpawn = 0;
+function startGame() {
+    resizeCanvas();
+    player.x = canvas.width / 2;
+    player.y = canvas.height / 2;
+    bullets = [];
+    enemies = [];
+    particles = [];
+    shake = 0;
+    score = 0;
+    scoreEl.textContent = 'Score: 0';
+    messageEl.textContent = '';
+    gameOver = false;
+    spawnInterval = parseInt(difficultyEl.value, 10);
+    lastEnemySpawn = 0;
+    lastShot = 0;
+    running = true;
+    requestAnimationFrame(gameLoop);
+}
 function gameLoop(timestamp) {
+    if (!running) return;
+
     if (gameOver) {
         ctx.fillStyle = 'white';
         ctx.font = '48px Arial';
         ctx.fillText('Game Over', canvas.width / 2 - 120, canvas.height / 2);
+        messageEl.textContent = 'Game Over - click to restart';
+        running = false;
         return;
     }
 
-    if (timestamp - lastEnemySpawn > 2000) {
+    if (timestamp - lastEnemySpawn > spawnInterval) {
         spawnEnemy();
         lastEnemySpawn = timestamp;
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (shake > 0) {
+        ctx.save();
+        ctx.translate(randomRange(-shake, shake), randomRange(-shake, shake));
+        shake *= 0.9;
+    }
     updatePlayer();
     updateBullets();
     updateEnemies();
+    updateParticles();
     drawPlayer();
     drawBullets();
     drawEnemies();
+    drawParticles();
+    if (shake > 0) {
+        ctx.restore();
+    }
 
     if (isShooting && timestamp - lastShot > 200) {
         spawnBullet();
@@ -162,6 +277,9 @@ function gameLoop(timestamp) {
 
 window.addEventListener('keydown', (e) => {
     keys[e.key.toLowerCase()] = true;
+    if (!running && e.key === ' ') {
+        startGame();
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -175,11 +293,21 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mousedown', () => {
-    isShooting = true;
+    if (running) {
+        isShooting = true;
+    }
 });
 
 canvas.addEventListener('mouseup', () => {
     isShooting = false;
 });
 
-requestAnimationFrame(gameLoop);
+canvas.addEventListener('click', () => {
+    if (!running) {
+        startGame();
+    }
+});
+
+difficultyEl.addEventListener('change', () => {
+    spawnInterval = parseInt(difficultyEl.value, 10);
+});

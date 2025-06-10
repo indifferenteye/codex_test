@@ -7,7 +7,16 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="ui">
+        <div id="score">Score: 0</div>
+        <div id="message">Click or press space to start. Use WASD or the arrow keys to move, hold the mouse button to shoot.</div>
+        <label for="difficulty">Difficulty:</label>
+        <select id="difficulty">
+            <option value="2000">Normal</option>
+            <option value="1000">Hard</option>
+        </select>
+    </div>
+    <canvas id="gameCanvas"></canvas>
     <script src="script.js"></script>
 </body>
 </html>
