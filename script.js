@@ -98,7 +98,8 @@ function spawnBullet() {
         y: player.y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        radius: 5
+        radius: 5,
+        bounced: false
     });
     shootSound();
 }
@@ -154,16 +155,64 @@ function updateBullets() {
     bullets.forEach((b, i) => {
         b.x += b.vx;
         b.y += b.vy;
+
+        let removed = false;
         obstacles.forEach(o => {
             if (
+                !removed &&
                 b.x > o.x - o.width / 2 &&
                 b.x < o.x + o.width / 2 &&
                 b.y > o.y - o.height / 2 &&
                 b.y < o.y + o.height / 2
             ) {
-                bullets.splice(i, 1);
+                if (!b.bounced) {
+                    const dx = b.x - o.x;
+                    const dy = b.y - o.y;
+                    if (Math.abs(dx * o.height) > Math.abs(dy * o.width)) {
+                        b.vx *= -1;
+                    } else {
+                        b.vy *= -1;
+                    }
+                    b.bounced = true;
+                } else {
+                    bullets.splice(i, 1);
+                    removed = true;
+                }
             }
         });
+        if (removed) return;
+
+        const hitLeft = b.x - b.radius < 0;
+        const hitRight = b.x + b.radius > canvas.width;
+        const hitTop = b.y - b.radius < 0;
+        const hitBottom = b.y + b.radius > canvas.height;
+
+        if (hitLeft || hitRight) {
+            if (!b.bounced) {
+                b.vx *= -1;
+                b.bounced = true;
+                if (hitLeft) b.x = b.radius;
+                if (hitRight) b.x = canvas.width - b.radius;
+            } else {
+                bullets.splice(i, 1);
+                removed = true;
+            }
+        }
+        if (removed) return;
+
+        if (hitTop || hitBottom) {
+            if (!b.bounced) {
+                b.vy *= -1;
+                b.bounced = true;
+                if (hitTop) b.y = b.radius;
+                if (hitBottom) b.y = canvas.height - b.radius;
+            } else {
+                bullets.splice(i, 1);
+                removed = true;
+            }
+        }
+        if (removed) return;
+
         if (
             b.x < -b.radius ||
             b.x > canvas.width + b.radius ||
