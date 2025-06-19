@@ -4,6 +4,7 @@ const scoreEl = document.getElementById('score');
 const healthEl = document.getElementById('health');
 const messageEl = document.getElementById('message');
 const difficultyEl = document.getElementById('difficulty');
+const ammoEl = document.getElementById('ammo');
 
 // simple audio setup for juicy feedback
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -38,6 +39,9 @@ let score = 0;
 let spawnInterval = parseInt(difficultyEl.value, 10);
 let particles = [];
 let shake = 0;
+const maxAmmo = 12;
+let ammo = maxAmmo;
+let isReloading = false;
 
 function generateWorld() {
     obstacles = [];
@@ -91,6 +95,7 @@ function spawnParticles(x, y, count, color) {
 }
 
 function spawnBullet() {
+    if (ammo <= 0 || isReloading) return;
     const angle = Math.atan2(mousePos.y - player.y, mousePos.x - player.x);
     const speed = 8;
     bullets.push({
@@ -101,7 +106,24 @@ function spawnBullet() {
         radius: 5,
         bounced: false
     });
+    ammo--;
+    ammoEl.textContent = `Ammo: ${ammo}`;
+    if (ammo === 0) {
+        messageEl.textContent = 'Press R to reload';
+    }
     shootSound();
+}
+
+function reload() {
+    if (isReloading || ammo === maxAmmo) return;
+    isReloading = true;
+    messageEl.textContent = 'Reloading...';
+    setTimeout(() => {
+        ammo = maxAmmo;
+        ammoEl.textContent = `Ammo: ${ammo}`;
+        messageEl.textContent = '';
+        isReloading = false;
+    }, 1000);
 }
 
 function spawnEnemy() {
@@ -338,6 +360,9 @@ function startGame() {
     score = 0;
     scoreEl.textContent = 'Score: 0';
     healthEl.textContent = `Health: ${player.hp}`;
+    ammo = maxAmmo;
+    ammoEl.textContent = `Ammo: ${ammo}`;
+    isReloading = false;
     messageEl.textContent = '';
     gameOver = false;
     spawnInterval = parseInt(difficultyEl.value, 10);
@@ -382,7 +407,7 @@ function gameLoop(timestamp) {
         ctx.restore();
     }
 
-    if (isShooting && timestamp - lastShot > 200) {
+    if (isShooting && timestamp - lastShot > 200 && ammo > 0 && !isReloading) {
         spawnBullet();
         lastShot = timestamp;
     }
@@ -394,6 +419,8 @@ window.addEventListener('keydown', (e) => {
     keys[e.key.toLowerCase()] = true;
     if (!running && e.key === ' ') {
         startGame();
+    } else if (running && e.key.toLowerCase() === 'r') {
+        reload();
     }
 });
 

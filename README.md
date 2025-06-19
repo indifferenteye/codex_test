@@ -11,6 +11,8 @@ Open `index.html` in a modern web browser. No additional dependencies are requir
 - Move with **WASD** or the arrow keys.
 - Aim with the mouse.
 - Hold the left mouse button to shoot.
+- Press **R** to reload when out of ammo.
+- The magazine holds 12 bullets.
 
 ## Gameplay
 

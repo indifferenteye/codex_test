@@ -35,6 +35,11 @@ body {
     margin-bottom: 4px;
 }
 
+#ammo {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
 #message {
     margin-bottom: 8px;
 }
