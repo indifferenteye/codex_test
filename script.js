@@ -126,7 +126,15 @@ function spawnEnemy() {
             y = canvas.height + size;
             break;
     }
-    enemies.push({ x, y, size, speed: 1.5, hp: 2 });
+    enemies.push({
+        x,
+        y,
+        size,
+        speed: 1.5,
+        hp: 2,
+        maxHp: 2,
+        color: 'red'
+    });
 }
 
 function updatePlayer() {
@@ -249,6 +257,9 @@ function updateEnemies() {
             if (distB < b.radius + e.size) {
                 bullets.splice(bi, 1);
                 e.hp -= 1;
+                if (e.hp <= e.maxHp / 2) {
+                    e.color = 'orange';
+                }
                 if (e.hp <= 0) {
                     enemies.splice(i, 1);
                     spawnParticles(e.x, e.y, 15, 'orange');
@@ -285,8 +296,8 @@ function drawObstacles() {
 }
 
 function drawEnemies() {
-    ctx.fillStyle = 'red';
     enemies.forEach(e => {
+        ctx.fillStyle = e.color;
         ctx.beginPath();
         ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
         ctx.fill();
